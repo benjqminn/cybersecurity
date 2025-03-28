@@ -1,23 +1,24 @@
 'use strict';
 
-const express = require('express');
-const router = express.Router();
 const fetch = require('node-fetch');
 const crypto = require('crypto');
+const helmet = require('helmet');
 
 const stockLikes = {};
 
 module.exports = function (app) {
-  const helmet = require('helmet');
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'"]
+  // Helmet CSP
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          "script-src": ["'self'"],
+          "style-src": ["'self'"]
+        }
       }
-    }
-  }));
+    })
+  );
 
   const getHashedIP = ip => crypto.createHash('sha256').update(ip).digest('hex');
 
@@ -44,9 +45,7 @@ module.exports = function (app) {
 
         const results = await Promise.all(symbols.map(async (sym) => {
           const { stock, price } = await fetchStockData(sym);
-          if (!stockLikes[stock]) {
-            stockLikes[stock] = new Set();
-          }
+          if (!stockLikes[stock]) stockLikes[stock] = new Set();
           if (like && !stockLikes[stock].has(ipHash)) {
             stockLikes[stock].add(ipHash);
           }
@@ -59,7 +58,7 @@ module.exports = function (app) {
 
         if (isArray && results.length === 2) {
           const [a, b] = results;
-          res.json({
+          return res.json({
             stockData: [
               {
                 stock: a.stock,
@@ -74,11 +73,11 @@ module.exports = function (app) {
             ]
           });
         } else {
-          res.json({ stockData: results[0] });
+          return res.json({ stockData: results[0] });
         }
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
       }
     });
 };
